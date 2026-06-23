@@ -25,12 +25,12 @@ const ProfilePage = () => {
   );
   const user = isTest ? {
     id: "user_test_12345",
-    firstName: "Test",
-    lastName: "User",
-    fullName: "Test User",
+    firstName: "Arjun",
+    lastName: "Sharma",
+    fullName: "Arjun Sharma",
     imageUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150",
     primaryEmailAddress: {
-      emailAddress: "testuser@example.com"
+      emailAddress: "arjun.sharma@example.com"
     }
   } as any : clerk.user;
 
