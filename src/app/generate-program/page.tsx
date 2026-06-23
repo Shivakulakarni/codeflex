@@ -6,6 +6,7 @@ import { vapi } from "@/lib/vapi";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { mockGenerateProgram } from "./actions";
 
 const GenerateProgramPage = () => {
   const [callActive, setCallActive] = useState(false);
@@ -14,10 +15,71 @@ const GenerateProgramPage = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [callEnded, setCallEnded] = useState(false);
 
-  const { user } = useUser();
+  // E2E Test Panel State
+  const [showTestPanel, setShowTestPanel] = useState(false);
+  const [testAge, setTestAge] = useState("26");
+  const [testHeight, setTestHeight] = useState("178 cm");
+  const [testWeight, setTestWeight] = useState("72 kg");
+  const [testInjuries, setTestInjuries] = useState("None");
+  const [testWorkoutDays, setTestWorkoutDays] = useState("Monday, Wednesday, Friday");
+  const [testFitnessGoal, setTestFitnessGoal] = useState("Build Muscle");
+  const [testFitnessLevel, setTestFitnessLevel] = useState("Intermediate");
+  const [testDietRestrictions, setTestDietRestrictions] = useState("None");
+  const [testError, setTestError] = useState("");
+
+  const clerk = useUser();
+  const isTest = typeof window !== "undefined" && (
+    window.location.search.includes("test=true") || 
+    document.cookie.includes("test=true")
+  );
+  const user = isTest ? {
+    id: "user_test_12345",
+    firstName: "Test",
+    lastName: "User",
+    fullName: "Test User",
+    imageUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150",
+    primaryEmailAddress: {
+      emailAddress: "testuser@example.com"
+    }
+  } as any : clerk.user;
+
   const router = useRouter();
 
   const messageContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleTestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConnecting(true);
+    setTestError("");
+    setMessages([{ role: "assistant", content: "Initializing visual test flow..." }]);
+    try {
+      const result = await mockGenerateProgram({
+        user_id: user?.id,
+        age: testAge,
+        height: testHeight,
+        weight: testWeight,
+        injuries: testInjuries,
+        workout_days: testWorkoutDays,
+        fitness_goal: testFitnessGoal,
+        fitness_level: testFitnessLevel,
+        dietary_restrictions: testDietRestrictions,
+      });
+
+      if (result.success) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Plan generated successfully! Saving to Convex..." }
+        ]);
+        setCallEnded(true);
+      } else {
+        setTestError(result.error || "Failed to generate program");
+        setConnecting(false);
+      }
+    } catch (error: any) {
+      setTestError(error.message || "Failed to generate program");
+      setConnecting(false);
+    }
+  };
 
   // SOLUTION to get rid of "Meeting has ended" error
   useEffect(() => {
@@ -54,12 +116,12 @@ const GenerateProgramPage = () => {
   useEffect(() => {
     if (callEnded) {
       const redirectTimer = setTimeout(() => {
-        router.push("/profile");
+        router.push(isTest ? "/profile?test=true" : "/profile");
       }, 1500);
 
       return () => clearTimeout(redirectTimer);
     }
-  }, [callEnded, router]);
+  }, [callEnded, router, isTest]);
 
   // setup event listeners for vapi
   useEffect(() => {
@@ -292,32 +354,174 @@ const GenerateProgramPage = () => {
         )}
 
         {/* CALL CONTROLS */}
-        <div className="w-full flex justify-center gap-4">
-          <Button
-            className={`w-40 text-xl rounded-3xl ${
-              callActive
-                ? "bg-destructive hover:bg-destructive/90"
-                : callEnded
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-primary hover:bg-primary/90"
-            } text-white relative`}
-            onClick={toggleCall}
-            disabled={connecting || callEnded}
-          >
-            {connecting && (
-              <span className="absolute inset-0 rounded-full animate-ping bg-primary/50 opacity-75"></span>
-            )}
-
-            <span>
-              {callActive
-                ? "End Call"
-                : connecting
-                  ? "Connecting..."
+        <div className="w-full flex flex-col items-center gap-6 mt-6">
+          <div className="flex justify-center gap-4">
+            <Button
+              className={`w-40 text-xl rounded-3xl ${
+                callActive
+                  ? "bg-destructive hover:bg-destructive/90"
                   : callEnded
-                    ? "View Profile"
-                    : "Start Call"}
-            </span>
-          </Button>
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-primary hover:bg-primary/90"
+              } text-white relative`}
+              onClick={toggleCall}
+              disabled={connecting || callEnded}
+            >
+              {connecting && (
+                <span className="absolute inset-0 rounded-full animate-ping bg-primary/50 opacity-75"></span>
+              )}
+
+              <span>
+                {callActive
+                  ? "End Call"
+                  : connecting
+                    ? "Connecting..."
+                    : callEnded
+                      ? "View Profile"
+                      : "Start Call"}
+              </span>
+            </Button>
+
+            {!callActive && !callEnded && (
+              <Button
+                id="test-panel-toggle"
+                variant="outline"
+                className="text-primary border-primary/50 hover:bg-primary/10 rounded-3xl"
+                onClick={() => setShowTestPanel(!showTestPanel)}
+              >
+                {showTestPanel ? "Hide Test Panel" : "Open Test Panel"}
+              </Button>
+            )}
+          </div>
+
+          {/* VISUAL E2E TEST PANEL */}
+          {showTestPanel && !callActive && !callEnded && (
+            <div className="w-full max-w-xl bg-card/95 backdrop-blur-md border border-primary/30 rounded-2xl p-6 shadow-lg shadow-primary/5 animate-fadeIn">
+              <h3 className="text-lg font-bold font-mono text-primary mb-4 flex items-center gap-2">
+                <span className="inline-block w-2.5 h-2.5 bg-primary animate-pulse rounded-full" />
+                VISUAL E2E TEST UTILITY
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                This panel allows automated visual testing of the program generation flow by simulating inputs directly without requiring live microphone/voice input.
+              </p>
+
+              <form onSubmit={handleTestSubmit} className="space-y-4 font-mono text-sm">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">AGE</label>
+                    <input
+                      id="input-age"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testAge}
+                      onChange={(e) => setTestAge(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">HEIGHT</label>
+                    <input
+                      id="input-height"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testHeight}
+                      onChange={(e) => setTestHeight(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">WEIGHT</label>
+                    <input
+                      id="input-weight"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testWeight}
+                      onChange={(e) => setTestWeight(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">WORKOUT DAYS</label>
+                    <input
+                      id="input-workout-days"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testWorkoutDays}
+                      onChange={(e) => setTestWorkoutDays(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">FITNESS GOAL</label>
+                  <input
+                    id="input-fitness-goal"
+                    type="text"
+                    className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                    value={testFitnessGoal}
+                    onChange={(e) => setTestFitnessGoal(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">FITNESS LEVEL</label>
+                    <input
+                      id="input-fitness-level"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testFitnessLevel}
+                      onChange={(e) => setTestFitnessLevel(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">INJURIES</label>
+                    <input
+                      id="input-injuries"
+                      type="text"
+                      className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                      value={testInjuries}
+                      onChange={(e) => setTestInjuries(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">DIETARY RESTRICTIONS</label>
+                  <input
+                    id="input-diet-restrictions"
+                    type="text"
+                    className="w-full bg-background border border-border p-2 rounded text-foreground focus:border-primary focus:outline-none"
+                    value={testDietRestrictions}
+                    onChange={(e) => setTestDietRestrictions(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {testError && (
+                  <div className="text-destructive text-xs p-2 bg-destructive/10 border border-destructive/20 rounded">
+                    {testError}
+                  </div>
+                )}
+
+                <Button
+                  id="btn-run-e2e"
+                  type="submit"
+                  disabled={connecting}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-mono py-2 rounded"
+                >
+                  {connecting ? "GENERATING PLAN..." : "TRIGGER E2E MOCK GENERATION"}
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>

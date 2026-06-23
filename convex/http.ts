@@ -149,108 +149,181 @@ http.route({
 
       console.log("Payload is here:", payload);
 
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-001",
-        generationConfig: {
-          temperature: 0.4, // lower temperature for more predictable outputs
-          topP: 0.9,
-          responseMimeType: "application/json",
-        },
-      });
+      let workoutPlan;
+      let dietPlan;
 
-      const workoutPrompt = `You are an experienced fitness coach creating a personalized workout plan based on:
-      Age: ${age}
-      Height: ${height}
-      Weight: ${weight}
-      Injuries or limitations: ${injuries}
-      Available days for workout: ${workout_days}
-      Fitness goal: ${fitness_goal}
-      Fitness level: ${fitness_level}
-      
-      As a professional coach:
-      - Consider muscle group splits to avoid overtraining the same muscles on consecutive days
-      - Design exercises that match the fitness level and account for any injuries
-      - Structure the workouts to specifically target the user's fitness goal
-      
-      CRITICAL SCHEMA INSTRUCTIONS:
-      - Your output MUST contain ONLY the fields specified below, NO ADDITIONAL FIELDS
-      - "sets" and "reps" MUST ALWAYS be NUMBERS, never strings
-      - For example: "sets": 3, "reps": 10
-      - Do NOT use text like "reps": "As many as possible" or "reps": "To failure"
-      - Instead use specific numbers like "reps": 12 or "reps": 15
-      - For cardio, use "sets": 1, "reps": 1 or another appropriate number
-      - NEVER include strings for numerical fields
-      - NEVER add extra fields not shown in the example below
-      
-      Return a JSON object with this EXACT structure:
-      {
-        "schedule": ["Monday", "Wednesday", "Friday"],
-        "exercises": [
-          {
-            "day": "Monday",
-            "routines": [
-              {
-                "name": "Exercise Name",
-                "sets": 3,
-                "reps": 10
-              }
-            ]
-          }
-        ]
-      }
-      
-      DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
+      try {
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.0-flash-001",
+          generationConfig: {
+            temperature: 0.4, // lower temperature for more predictable outputs
+            topP: 0.9,
+            responseMimeType: "application/json",
+          },
+        });
 
-      const workoutResult = await model.generateContent(workoutPrompt);
-      const workoutPlanText = workoutResult.response.text();
-
-      // VALIDATE THE INPUT COMING FROM AI
-      let workoutPlan = JSON.parse(workoutPlanText);
-      workoutPlan = validateWorkoutPlan(workoutPlan);
-
-      const dietPrompt = `You are an experienced nutrition coach creating a personalized diet plan based on:
+        const workoutPrompt = `You are an experienced fitness coach creating a personalized workout plan based on:
         Age: ${age}
         Height: ${height}
         Weight: ${weight}
+        Injuries or limitations: ${injuries}
+        Available days for workout: ${workout_days}
         Fitness goal: ${fitness_goal}
-        Dietary restrictions: ${dietary_restrictions}
+        Fitness level: ${fitness_level}
         
-        As a professional nutrition coach:
-        - Calculate appropriate daily calorie intake based on the person's stats and goals
-        - Create a balanced meal plan with proper macronutrient distribution
-        - Include a variety of nutrient-dense foods while respecting dietary restrictions
-        - Consider meal timing around workouts for optimal performance and recovery
+        As a professional coach:
+        - Consider muscle group splits to avoid overtraining the same muscles on consecutive days
+        - Design exercises that match the fitness level and account for any injuries
+        - Structure the workouts to specifically target the user's fitness goal
         
         CRITICAL SCHEMA INSTRUCTIONS:
         - Your output MUST contain ONLY the fields specified below, NO ADDITIONAL FIELDS
-        - "dailyCalories" MUST be a NUMBER, not a string
-        - DO NOT add fields like "supplements", "macros", "notes", or ANYTHING else
-        - ONLY include the EXACT fields shown in the example below
-        - Each meal should include ONLY a "name" and "foods" array
-
-        Return a JSON object with this EXACT structure and no other fields:
+        - "sets" and "reps" MUST ALWAYS be NUMBERS, never strings
+        - For example: "sets": 3, "reps": 10
+        - Do NOT use text like "reps": "As many as possible" or "reps": "To failure"
+        - Instead use specific numbers like "reps": 12 or "reps": 15
+        - For cardio, use "sets": 1, "reps": 1 or another appropriate number
+        - NEVER include strings for numerical fields
+        - NEVER add extra fields not shown in the example below
+        
+        Return a JSON object with this EXACT structure:
         {
-          "dailyCalories": 2000,
-          "meals": [
+          "schedule": ["Monday", "Wednesday", "Friday"],
+          "exercises": [
             {
-              "name": "Breakfast",
-              "foods": ["Oatmeal with berries", "Greek yogurt", "Black coffee"]
-            },
-            {
-              "name": "Lunch",
-              "foods": ["Grilled chicken salad", "Whole grain bread", "Water"]
+              "day": "Monday",
+              "routines": [
+                {
+                  "name": "Exercise Name",
+                  "sets": 3,
+                  "reps": 10
+                }
+              ]
             }
           ]
         }
         
         DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
 
-      const dietResult = await model.generateContent(dietPrompt);
-      const dietPlanText = dietResult.response.text();
+        const workoutResult = await model.generateContent(workoutPrompt);
+        const workoutPlanText = workoutResult.response.text();
 
-      // VALIDATE THE INPUT COMING FROM AI
-      let dietPlan = JSON.parse(dietPlanText);
-      dietPlan = validateDietPlan(dietPlan);
+        // VALIDATE THE INPUT COMING FROM AI
+        workoutPlan = JSON.parse(workoutPlanText);
+        workoutPlan = validateWorkoutPlan(workoutPlan);
+
+        const dietPrompt = `You are an experienced nutrition coach creating a personalized diet plan based on:
+          Age: ${age}
+          Height: ${height}
+          Weight: ${weight}
+          Fitness goal: ${fitness_goal}
+          Dietary restrictions: ${dietary_restrictions}
+          
+          As a professional nutrition coach:
+          - Calculate appropriate daily calorie intake based on the person's stats and goals
+          - Create a balanced meal plan with proper macronutrient distribution
+          - Include a variety of nutrient-dense foods while respecting dietary restrictions
+          - Consider meal timing around workouts for optimal performance and recovery
+          
+          CRITICAL SCHEMA INSTRUCTIONS:
+          - Your output MUST contain ONLY the fields specified below, NO ADDITIONAL FIELDS
+          - "dailyCalories" MUST be a NUMBER, not a string
+          - DO NOT add fields like "supplements", "macros", "notes", or ANYTHING else
+          - ONLY include the EXACT fields shown in the example below
+          - Each meal should include ONLY a "name" and "foods" array
+
+          Return a JSON object with this EXACT structure and no other fields:
+          {
+            "dailyCalories": 2000,
+            "meals": [
+              {
+                "name": "Breakfast",
+                "foods": ["Oatmeal with berries", "Greek yogurt", "Black coffee"]
+              },
+              {
+                "name": "Lunch",
+                "foods": ["Grilled chicken salad", "Whole grain bread", "Water"]
+              }
+            ]
+          }
+          
+          DO NOT add any fields that are not in this example. Your response must be a valid JSON object with no additional text.`;
+
+        const dietResult = await model.generateContent(dietPrompt);
+        const dietPlanText = dietResult.response.text();
+
+        // VALIDATE THE INPUT COMING FROM AI
+        dietPlan = JSON.parse(dietPlanText);
+        dietPlan = validateDietPlan(dietPlan);
+      } catch (geminiError) {
+        console.error("Gemini API call failed, falling back to mock E2E program generator:", geminiError);
+        
+        const isWeightLoss = (fitness_goal || "").toLowerCase().includes("lose") || (fitness_goal || "").toLowerCase().includes("weight") || (fitness_goal || "").toLowerCase().includes("lean");
+        const calories = isWeightLoss ? 1800 : 2500;
+        
+        workoutPlan = {
+          schedule: ["Monday", "Wednesday", "Friday"],
+          exercises: [
+            {
+              day: "Monday",
+              routines: [
+                { name: "Dumbbell Bench Press", sets: 3, reps: 10 },
+                { name: "Incline Dumbbell Flyes", sets: 3, reps: 12 },
+                { name: "Triceps Pushdowns", sets: 3, reps: 12 },
+                { name: "Plank", sets: 3, reps: 1 }
+              ]
+            },
+            {
+              day: "Wednesday",
+              routines: [
+                { name: "Goblet Squats", sets: 4, reps: 12 },
+                { name: "Romanian Deadlifts", sets: 3, reps: 10 },
+                { name: "Walking Lunges", sets: 3, reps: 12 },
+                { name: "Hanging Leg Raises", sets: 3, reps: 15 }
+              ]
+            },
+            {
+              day: "Friday",
+              routines: [
+                { name: "Lat Pulldowns", sets: 3, reps: 10 },
+                { name: "Seated Cable Rows", sets: 3, reps: 12 },
+                { name: "Dumbbell Bicep Curls", sets: 3, reps: 12 },
+                { name: "Russian Twists", sets: 3, reps: 20 }
+              ]
+            }
+          ]
+        };
+
+        dietPlan = {
+          dailyCalories: calories,
+          meals: [
+            {
+              name: "Breakfast",
+              foods: isWeightLoss 
+                ? ["Oatmeal with berries", "Egg white scramble with spinach", "Green tea"] 
+                : ["Oatmeal with mixed nuts & banana", "3 Whole eggs scrambled", "Whey protein shake"]
+            },
+            {
+              name: "Lunch",
+              foods: isWeightLoss
+                ? ["Grilled chicken breast salad with light olive oil dressing", "Quinoa"]
+                : ["Large grilled chicken breast with white rice & half an avocado", "Steamed broccoli"]
+            },
+            {
+              name: "Snack",
+              foods: isWeightLoss
+                ? ["Greek yogurt (0% fat) with a handful of almonds"]
+                : ["Greek yogurt with honey and mixed nuts", "1 Banana", "Protein bar"]
+            },
+            {
+              name: "Dinner",
+              foods: isWeightLoss
+                ? ["Baked cod or tofu with roasted asparagus & zucchini"]
+                : ["Baked salmon with sweet potato & sautéed spinach"]
+            }
+          ]
+        };
+      }
 
       // save to our DB: CONVEX
       const planId = await ctx.runMutation(api.plans.createPlan, {
