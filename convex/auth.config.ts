@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://on-gull-43.clerk.accounts.dev",
+      domain: "https://trusting-phoenix-68.clerk.accounts.dev",
       applicationID: "convex",
     },
   ],

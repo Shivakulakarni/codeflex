@@ -133,7 +133,8 @@ const GenerateProgramPage = () => {
           : "There";
         //console.log("🧠 Sending user_id to backend:", user?.id);
 
-        await vapi.start(process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID!, {
+        const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID || "";
+        await vapi.start(assistantId, {
           variableValues: {
             full_name: fullName,
             user_id: user?.id,
@@ -228,7 +229,7 @@ const GenerateProgramPage = () => {
                     : callActive
                       ? "Listening..."
                       : callEnded
-                        ? "Redirecting to profile..."
+                        ? "Generating your plan..."
                         : "Waiting..."}
                 </span>
               </div>
